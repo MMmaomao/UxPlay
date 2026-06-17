@@ -199,6 +199,7 @@ static std::string track_title;
 static std::string track_album;
 static std::string coverart_artist;
 static std::string ble_filename = "";
+static bool no_dnssd = false;
 static std::string rtp_pipeline = "";
 static std::string audio_rtp_pipeline = "";
 static GMainLoop *gmainloop = NULL;
@@ -997,6 +998,7 @@ static void print_info (char *name) {
     printf("          (option to use file \"fn\" instead); used for client remote\n");
     printf("-ble [fn] For BluetoothLE beacon: write data to file ~/.uxplay.ble\n");
     printf("          optional: write to file \"fn\" (\"fn\" = \"off\" to cancel)\n");
+    printf("-nobonjour  Do not register Bonjour/DNS-SD services (no mDNS dependency)\n");
     printf("-d [n]    Enable debug logging; optional: n=1 to skip normal packet data\n");
     printf("-vdmp [n] Dump h264 video output to \"fn.h264\"; fn=\"videodump\",change\n");
     printf("          with \"-vdmp [n] filename\". If [n] is given, file fn.x.h264\n");
@@ -1734,6 +1736,8 @@ static void parse_arguments (int argc, char *argv[]) {
             }
         } else if (arg == "-h265") {
             h265_support = true;
+        } else if (arg == "-nobonjour") {
+            no_dnssd = true;
         } else if (arg == "-nofreeze") {
             nofreeze = true;
         } else {
@@ -1913,7 +1917,12 @@ static int parse_dmap_header(const unsigned char *metadata, char *tag, int *len)
 static int register_dnssd() {
     int dnssd_error;
     uint64_t features;
-    
+
+    if (no_dnssd) {
+        LOGI("Bonjour/DNS-SD registration disabled by -nobonjour option");
+        return 0;
+    }
+
     dnssd_error = dnssd_register_raop(dnssd, raop_port);
     if (dnssd_error) {
         if (ble_filename.empty()) {
@@ -3222,10 +3231,12 @@ int main (int argc, char *argv[]) {
         LOGI("Bluetooth LE beacon-based service discovery is possible: PID data written to %s", ble_filename.c_str());
     }
     
-    if (register_dnssd()) {
-        stop_raop_server();
-        stop_dnssd();
-        cleanup();
+    if (!no_dnssd) {
+        if (register_dnssd()) {
+            stop_raop_server();
+            stop_dnssd();
+            cleanup();
+        }
     }
     reconnect:
     compression_type = 0;
