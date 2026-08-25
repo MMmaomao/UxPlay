@@ -158,6 +158,7 @@ static uint64_t remote_clock_offset = 0;
 static std::vector<std::string> allowed_clients;
 static std::vector<std::string> blocked_clients;
 static bool restrict_clients;
+static std::string name_allow = "";
 static bool setup_legacy_pairing = false;
 static unsigned char pin_pw = 0;  /* 0: no client access control; 1: onscreen pin ; 2: require password (same password for all clients)  3: random pw*/
 static std::string password = "";
@@ -987,6 +988,7 @@ static void print_info (char *name) {
     printf("          Use \"-restrict no\" for no client restrictions (default)\n");
     printf("-allow <i>Permit deviceID = <i> to connect if restrictions are imposed\n");
     printf("-block <i>Always block connections from deviceID = <i>\n");
+    printf("-name_allow <name> Only allow connections from device whose name = <name>\n");
     printf("-FPSdata  Show video-streaming performance reports sent by client.\n");
     printf("-fps n    Set maximum allowed streaming framerate, default 30\n");
     printf("-f {H|V|I}Horizontal|Vertical flip, or both=Inversion=rotate 180 deg\n");
@@ -1216,6 +1218,10 @@ static void parse_arguments (int argc, char *argv[]) {
             if (!option_has_value(i, argc, arg, argv[i+1])) exit(1);
             i++;
             blocked_clients.push_back(argv[i]);    
+        } else if (arg == "-name_allow") {
+            if (!option_has_value(i, argc, arg, argv[i+1])) exit(1);
+            i++;
+            name_allow = argv[i];
         } else if (arg == "-restrict") {
             if (i <  argc - 1) {
                 if (strlen(argv[i+1]) == 2 && strncmp(argv[i+1], "no", 2) == 0) {
@@ -2294,6 +2300,10 @@ extern "C" void report_client_request(void *cls, char *deviceid, char * model, c
     if (check_blocked_client(deviceid)) {
         *admit = false;
         LOGI("*** attempt to connect by blocked client (clientID %s): DENIED\n", deviceid);
+    }
+    if (*admit && name_allow.length() && strcmp(name, name_allow.c_str()) != 0) {
+        *admit = false;
+        LOGI("connection from device name %s DENIED (allowed name: %s)\n", name, name_allow.c_str());
     }
     // Pass device model to renderer for device frame display
     if (*admit && use_video) {

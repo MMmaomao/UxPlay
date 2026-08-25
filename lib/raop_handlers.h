@@ -772,6 +772,7 @@ raop_handler_setup(raop_conn_t *conn,
             /* client is not authorized to connect */
             plist_free(res_root_node);
             plist_free(req_root_node);
+            http_response_init(response, "RTSP/1.0", 409, "Conflict");
             return;
         }
 
